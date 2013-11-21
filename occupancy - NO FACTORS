@@ -1,0 +1,88 @@
+library (unmarked)
+setwd("C:/Users/Jesse/Documents/Furman/Dr. Quinn/analysis")
+test <-read.csv("bhnuoccupancy.csv")
+summary(test)
+str(test)
+bhnu <- csvToUMF("bhnuoccupancy_nofactors.csv", long = FALSE, type = "unmarkedFrameOccu")    # type may need to change for occupancy
+summary(bhnu)
+
+# it may be necessary to scale the covariates
+obsCovs(bhnu)= scale (obsCovs(bhnu))
+siteCovs(bhnu)= scale (siteCovs(bhnu))
+
+
+fmnull.bhnu <- occuRN(~1 ~1, bhnu)
+fmglobal.bhnu <- occuRN(~ Noise + Wind + Sky ~ CanopyHt + CanopyCvr + TreeBA +TreeDensity +PineBA +PineDensity +Area +Pine50m +Pine100m +Pine500m +Pine1000m, bhnu)
+fm1.bhnu <- occuRN(~ Noise + Wind + Sky ~CanopyHt, bhnu)
+fm2.bhnu <- occuRN(~ Noise + Wind + Sky ~TreeDensity, bhnu)
+fm3.bhnu <- occuRN(~ Noise + Wind + Sky ~TreeBA, bhnu)
+fm4.bhnu <- occuRN(~ Noise + Wind + Sky ~PineBA, bhnu)
+fm5.bhnu <- occuRN(~ Noise + Wind + Sky ~PineDensity, bhnu)
+fm6.bhnu <- occuRN(~ Noise + Wind + Sky ~CanopyCvr, bhnu)
+## Cornell page: tendency to find them in highest canopy and in mature pine stands (perhaps = high-quality patch)
+fm7.bhnu <- occuRN(~ Noise + Wind + Sky ~CanopyHt + PineBA, bhnu)
+## Same as fm7 except if simply a mature stand in general, with good pine density, is important:
+fm8.bhnu <- occuRN(~ Noise + Wind + Sky ~CanopyHt + TreeBA + PineDensity, bhnu)
+## Tend to forage in more open canopy and less dense trees. maybe we detected them while foraging
+fm9.bhnu <- occuRN(~ Noise + Wind + Sky ~CanopyCvr + TreeDensity, bhnu)
+## If the canopy structure is the most important because these are high-nesting birds
+fm10.bhnu <- occuRN(~ Noise + Wind + Sky ~CanopyCvr + CanopyHt, bhnu)
+## But perhaps the system truly is most important. Quality of the matrix would be reflected in system & %pine
+#fm11.bhnu <- occuRN(~ Noise + Wind + Sky ~PerceivedSystem +Pine50m +Pine100m +Pine500m +Pine1000m, bhnu)
+#Best guess at suitable habitat based on where found them:
+fm12.bhnu <- occuRN(~ Noise + Wind + Sky ~PineBA + CanopyCvr + Pine500m, bhnu)
+#The real extent of the patch--area and volume of pine
+fm13.bhnu <- occuRN(~ Noise + Wind + Sky ~Area + PineBA, bhnu)
+# robust stands--both large and mature
+fm14.bhnu <- occuRN(~ Noise + Wind + Sky ~Area + CanopyHt + CanopyCvr + PineBA, bhnu)
+#fm15.bhnu <- occuRN(~ Noise + Wind + Sky ~PerceivedSystem + PineBA, bhnu)
+fm16.bhnu <- occuRN(~ Noise + Wind + Sky ~Pine500m, bhnu)
+fm17.bhnu <- occuRN(~ Noise + Wind + Sky ~Pine50m, bhnu)
+fm18.bhnu <- occuRN(~ Noise + Wind + Sky ~Pine100m, bhnu)
+fm19.bhnu <- occuRN(~ Noise + Wind + Sky ~Pine1000m, bhnu)
+
+summary(fmnull.bhnu)
+summary(fmglobal.bhnu)
+summary(fm16.bhnu)
+
+fms <- fitList(fmnull.bhnu, fmglobal.bhnu, fm1.bhnu, fm2.bhnu, fm3.bhnu, fm4.bhnu, fm5.bhnu, fm6.bhnu, fm7.bhnu, fm8.bhnu, fm9.bhnu, fm10.bhnu, fm12.bhnu, fm13.bhnu, fm14.bhnu, fm16.bhnu, fm17.bhnu, fm18.bhnu,fm19.bhnu)
+modSel(fms)
+
+fms2 <- fitList(fm1.bhnu, fmnull.bhnu, fm10.bhnu, fm5.bhnu, fm2.bhnu, fm6.bhnu)
+modSel(fms2)
+summary(fm10.bhnu)
+summary(fm5.bhnu)
+summary(fm1.bhnu)
+
+predict(fms2, type="state")
+
+AIC(fmnull.bhnu, fmglobal.bhnu, fm3.bhnu)
+
+
+
+##for CanopyHt
+#first create a data frame of the lenght of the data with a sequence between the max and min
+htplot = data.frame(CanopyHt = seq(17,140, length = 53))
+#second with the predict function predict the data
+bhnu.CanopyHt <-predict(fm1.bhnu, type="state",appendData=TRUE, newdata=htplot)
+
+#plot the predicted data
+plot (bhnu.CanopyHt$CanopyHt, bhnu.CanopyHt$Predicted,  ylim=0:1, type="l", xlab = "Canopy Height", ylab = "Occupancy", lwd=2)
+# add CI
+lines(bhnu.CanopyHt$CanopyHt, bhnu.CanopyHt$upper, ylim=0:1, col="Grey1",lty=1, lwd=1)
+lines(bhnu.CanopyHt$CanopyHt, bhnu.CanopyHt$lower, ylim=0:1, col="Grey1",lty=1, lwd=1)
+
+
+#for now it is just for a single covariate model 
+#Example below with fm4.bhnu
+
+#first create a data frame of the lenght of the data with a sequence between the max and min
+newData = data.frame(PineBA = seq(100,4000, length = 53))
+#second with the predict function predict the data
+bhnu.PineBA <-predict(fm4.bhnu, type="state",appendData=TRUE, newdata=newData)
+
+#plot the predicted data
+plot (bhnu.PineBA$PineBA, bhnu.PineBA$Predicted,  ylim=0:1, type="l", xlab = "Pine BA", ylab = "Occupancy", lwd=2)
+# add CI
+lines(bhnu.PineBA$PineBA, bhnu.PineBA$upper, ylim=0:1, col="Grey1",lty=1, lwd=1)
+lines(bhnu.PineBA$PineBA, bhnu.PineBA$lower, ylim=0:1, col="Grey1",lty=1, lwd=1)
